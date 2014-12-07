@@ -2,7 +2,9 @@ package kafka;
 
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
+import kafka.message.Message;
 import kafka.message.MessageAndMetadata;
+import kafka.serializer.Decoder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.security.PrivilegedExceptionAction;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -125,7 +128,7 @@ public class Kafka2HDFSWorker implements Runnable {
   private void check2SaveFileInHdfs() throws IOException {
     long nowTS = Long.valueOf(_simpleDateFormat.format(new Date()));
     if (nowTS == _currentTrackingTS) {
-      _logger.trace("Do Nothing.");
+//      _logger.trace("Do Nothing.");
       return;
     }
     _logger.info("Prepared to save local file ({}) in HDFS", _localTmpFolder + "/" + _currentFileName);
@@ -166,25 +169,25 @@ public class Kafka2HDFSWorker implements Runnable {
         public Void run() throws Exception {
           FileSystem fileSystem = FileSystem.get(URI.create(_hdfs), new Configuration());
           Path filePath = new Path(_hdfsBaseFolder + "/" + _topic + trackingFolderStructure + _threadNum + ".dat");
-          final String preferedFileName = filePath.getName();
+          final String preferredFileName = filePath.getName();
           Path parentFilePath = filePath.getParent();
           if (fileSystem.exists(parentFilePath)) {
             FileStatus[] fileStatuses = fileSystem.listStatus(parentFilePath, new PathFilter() {
               @Override
               public boolean accept(Path path) {
-                if (path.getName().equals(preferedFileName)) {
+                if (path.getName().equals(preferredFileName)) {
                   // include the preferred file itself
                   return true;
                 }
                 // include the preferred files with file ID as well
-                Pattern pattern = Pattern.compile(preferedFileName + "\\.[0-9]+");
+                Pattern pattern = Pattern.compile(preferredFileName + "\\.[0-9]+");
                 Matcher matcher = pattern.matcher(path.getName());
                 return matcher.find();
               }
             });
 
             if (fileStatuses.length > 0) {
-              _logger.info("Preferred file ({}) existing in HDFS.", preferedFileName);
+              _logger.info("Preferred file ({}) existing in HDFS.", preferredFileName);
               int suffixFileID = fileStatuses.length;
               for (FileStatus fileStatuse : fileStatuses) {
                 int dotIndex = fileStatuse.getPath().getName().lastIndexOf('.');
@@ -200,7 +203,7 @@ public class Kafka2HDFSWorker implements Runnable {
                   }
                 }
               }
-              filePath = new Path(parentFilePath.toString() + "/" + preferedFileName + "." + suffixFileID);
+              filePath = new Path(parentFilePath.toString() + "/" + preferredFileName + "." + suffixFileID);
               _logger.info("Preferred file set to {}", filePath);
             }
           } else {

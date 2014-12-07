@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
+ * The housekeeping class will be hooked to the shutdown process to make sure the process
+ * can complete gracefully.
  * Created by shengzhao on 10/2/14.
  */
 public class Kafka2HDFSHouseKeeper implements Runnable {
